@@ -195,13 +195,14 @@ private struct HotKeyField: NSViewRepresentable {
 
 struct SettingsView: View {
     private enum Sheet: String, Identifiable {
-        case folders, apps, contacts, shortcuts, dropZone
+        case folders, apps, contacts, shortcuts, order, dropZone
         var id: String { rawValue }
     }
 
     @ObservedObject private var store = DestinationStore.shared
     @ObservedObject private var prefs = Preferences.shared
     @ObservedObject private var dropZone = DropZoneStore.shared
+    @ObservedObject private var updater = Updater.shared
     @State private var sheet: Sheet?
 
     private func count(_ kinds: DestinationRecord.Kind...) -> Int {
@@ -255,6 +256,29 @@ struct SettingsView: View {
             }
 
             Card {
+                SettingRow(title: "Check for Updates", subtitle: "From GitHub releases") {
+                    Picker("", selection: $prefs.updateInterval) {
+                        ForEach(UpdateInterval.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .labelsHidden()
+                    .frame(width: 120)
+                }
+                Divider().padding(.leading, 12)
+                SettingRow(title: "Install Automatically", subtitle: "Restart to update when Contxt is idle") {
+                    Toggle("", isOn: $prefs.autoInstallUpdates).toggleStyle(.switch).labelsHidden()
+                }
+                Divider().padding(.leading, 12)
+                SettingRow(title: "Version \(updater.currentVersion)", subtitle: updater.statusText) {
+                    if case .ready = updater.state {
+                        Button("Restart & Update") { updater.installAndRelaunch() }
+                    } else {
+                        Button("Check Now") { updater.check(userInitiated: true) }
+                            .disabled(updater.state == .checking)
+                    }
+                }
+            }
+
+            Card {
                 NavRow(symbol: "tray.and.arrow.down.fill", color: .teal, title: "Drop Zone",
                        subtitle: "\(dropZone.urls.count) files stacked") { sheet = .dropZone }
                 Divider().padding(.leading, 50)
@@ -269,6 +293,9 @@ struct SettingsView: View {
                 Divider().padding(.leading, 50)
                 NavRow(symbol: "person.crop.circle.fill", color: .green, title: "Contacts",
                        subtitle: "\(count(.contact)) contacts configured") { sheet = .contacts }
+                Divider().padding(.leading, 50)
+                NavRow(symbol: "arrow.up.arrow.down", color: .pink, title: "Ring Order",
+                       subtitle: "Drag to arrange the circles") { sheet = .order }
             }
         }
         .padding(18)
@@ -279,6 +306,7 @@ struct SettingsView: View {
             case .apps: AppsSheet()
             case .contacts: ContactsSheet()
             case .shortcuts: ShortcutsSheet()
+            case .order: OrderSheet()
             case .dropZone: DropZoneSheet()
             }
         }
@@ -291,6 +319,7 @@ private struct SheetFrame<Content: View>: View {
     let symbol: String
     let title: String
     let subtitle: String
+    var scrolls = true
     @ViewBuilder var content: Content
     @Environment(\.dismiss) private var dismiss
 
@@ -310,8 +339,12 @@ private struct SheetFrame<Content: View>: View {
             }
             .padding(16)
             Divider()
-            ScrollView {
-                VStack(spacing: 12) { content }.padding(16)
+            if scrolls {
+                ScrollView {
+                    VStack(spacing: 12) { content }.padding(16)
+                }
+            } else {
+                content
             }
             Divider()
             Button("Close") { dismiss() }
@@ -489,12 +522,13 @@ private struct ContactsSheet: View {
                                 case .message: return true
                                 case .email: return record.email != nil || rec.wrappedValue.channel == .email
                                 case .whatsapp: return record.phone != nil || rec.wrappedValue.channel == .whatsapp
+                                case .telegram: return record.phone != nil || rec.wrappedValue.channel == .telegram
                                 }
                             }, id: \.self) { Text($0.title).tag($0) }
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
-                        .frame(width: 210)
+                        .frame(width: 270)
                         removeButton(record)
                     }
                     .padding(.horizontal, 12)
@@ -651,6 +685,39 @@ private struct ShortcutsSheet: View {
     }
 }
 
+private struct OrderSheet: View {
+    @ObservedObject private var store = DestinationStore.shared
+
+    private func kindTitle(_ kind: DestinationRecord.Kind) -> String {
+        switch kind {
+        case .folder: return "Folder"
+        case .app: return "App"
+        case .script: return "Script"
+        case .contact: return "Contact"
+        case .action: return "Action"
+        case .shortcut: return "Shortcut"
+        }
+    }
+
+    var body: some View {
+        SheetFrame(symbol: "arrow.up.arrow.down", title: "Ring Order", subtitle: "Drag rows to reorder, clockwise from the top", scrolls: false) {
+            List {
+                ForEach(store.records) { record in
+                    HStack(spacing: 10) {
+                        Image(systemName: "line.3.horizontal").foregroundStyle(.tertiary)
+                        Image(nsImage: record.destination.iconImage()).resizable().frame(width: 26, height: 26)
+                        Text(record.name).font(.system(size: 13, weight: .medium))
+                        Spacer()
+                        Text(kindTitle(record.kind)).font(.caption).foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                }
+                .onMove { store.records.move(fromOffsets: $0, toOffset: $1) }
+            }
+        }
+    }
+}
+
 private struct DropZoneSheet: View {
     @ObservedObject private var dropZone = DropZoneStore.shared
 
@@ -691,6 +758,8 @@ private struct DropZoneSheet: View {
 final class SettingsWindowController {
     static let shared = SettingsWindowController()
     private var window: NSWindow?
+
+    var isVisible: Bool { window?.isVisible ?? false }
 
     func show() {
         if window == nil {

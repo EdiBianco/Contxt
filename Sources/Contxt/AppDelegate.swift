@@ -8,6 +8,7 @@
 
 import AppKit
 import Carbon.HIToolbox
+import Combine
 
 private func fourCharCode(_ string: String) -> FourCharCode {
     var result: FourCharCode = 0
@@ -29,6 +30,8 @@ private func hotKeyEventHandler(_ nextHandler: EventHandlerCallRef?, _ eventRef:
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var ring: RingController!
     private var statusItem: NSStatusItem!
+    private var updateItem: NSMenuItem!
+    private var updateObserver: AnyCancellable?
 
     private var eventHandlerRef: EventHandlerRef?
     private var toggleHotKeyRef: EventHotKeyRef?
@@ -47,6 +50,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Preferences.shared.hotKeyOK = registerToggle(Preferences.shared.hotKey)
         setUpStatusItem()
         Permissions.checkAndPrompt()
+
+        Updater.shared.isSafeToRestart = { [weak self] in
+            !(self?.ring.isVisible ?? false) && !SettingsWindowController.shared.isVisible
+        }
+        Updater.shared.start()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -120,6 +128,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
+
+        let checkItem = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+        checkItem.target = self
+        menu.addItem(checkItem)
+        updateItem = NSMenuItem(title: "Restart to Update", action: #selector(installUpdate), keyEquivalent: "")
+        updateItem.target = self
+        updateItem.isHidden = true
+        menu.addItem(updateItem)
+        updateObserver = Updater.shared.$state.receive(on: DispatchQueue.main).sink { [weak self] state in
+            if case .ready(let version) = state {
+                self?.updateItem.title = "Restart to Update to \(version)"
+                self?.updateItem.isHidden = false
+            } else {
+                self?.updateItem.isHidden = true
+            }
+        }
+
         let permissionsItem = NSMenuItem(title: "Check Permissions…", action: #selector(checkPermissions), keyEquivalent: "")
         permissionsItem.target = self
         menu.addItem(permissionsItem)
@@ -132,6 +157,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openSettings() {
         SettingsWindowController.shared.show()
+    }
+
+    @objc private func checkForUpdates() {
+        Updater.shared.check(userInitiated: true)
+    }
+
+    @objc private func installUpdate() {
+        Updater.shared.installAndRelaunch()
     }
 
     @objc private func checkPermissions() {

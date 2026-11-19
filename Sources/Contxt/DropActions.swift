@@ -98,17 +98,18 @@ enum DropActions {
         }
     }
 
-    /// WhatsApp has no share API that takes a recipient plus files, so open the
-    /// chat and leave the files on the pasteboard for Cmd+V.
-    private static func dropOnWhatsApp(_ target: ContactTarget, filePaths: [String]) {
+    /// WhatsApp and Telegram have no share API that takes a recipient plus
+    /// files, so open the chat and leave the files on the pasteboard for Cmd+V.
+    private static func dropOnChatApp(_ target: ContactTarget, filePaths: [String]) {
+        let appName = target.channel == .telegram ? "Telegram" : "WhatsApp"
         guard let phone = target.phone else {
             Toast.show("No phone number saved for this contact")
             return
         }
         let digits = phone.filter(\.isNumber)
-        guard let url = URL(string: "whatsapp://send?phone=\(digits)"),
-              NSWorkspace.shared.urlForApplication(toOpen: url) != nil else {
-            Toast.show("WhatsApp isn't installed")
+        let link = target.channel == .telegram ? "tg://resolve?phone=\(digits)" : "whatsapp://send?phone=\(digits)"
+        guard let url = URL(string: link), NSWorkspace.shared.urlForApplication(toOpen: url) != nil else {
+            Toast.show("\(appName) isn't installed")
             return
         }
 
@@ -116,13 +117,13 @@ enum DropActions {
         pasteboard.clearContents()
         pasteboard.writeObjects(filePaths.map { URL(fileURLWithPath: $0) as NSURL })
         NSWorkspace.shared.open(url)
-        Toast.show("Files copied. Press \u{2318}V in the WhatsApp chat to attach them")
+        Toast.show("Files copied. Press \u{2318}V in the \(appName) chat to attach them")
     }
 
     /// Opens Messages or Mail with the files attached, addressed to the contact.
     static func dropOnContact(_ target: ContactTarget, filePaths: [String]) {
-        if target.channel == .whatsapp {
-            dropOnWhatsApp(target, filePaths: filePaths)
+        if target.channel == .whatsapp || target.channel == .telegram {
+            dropOnChatApp(target, filePaths: filePaths)
             return
         }
         let name: NSSharingService.Name = target.channel == .email ? .composeEmail : .composeMessage

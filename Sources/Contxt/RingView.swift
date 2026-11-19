@@ -12,7 +12,7 @@ import Combine
 
 private final class RingItemLayer {
     let destination: Destination
-    let angle: CGFloat
+    var angle: CGFloat
     let circle = CAShapeLayer()
     let icon = CALayer()
     let badge = CALayer()
@@ -81,7 +81,7 @@ final class RingView: NSView, NSDraggingSource {
     private var scale: CGFloat { CGFloat(Preferences.shared.orbScale) }
     private var itemDiameter: CGFloat { 104 * scale }
     private var itemRadius: CGFloat { 215 * scale }
-    private var dropZoneDiameter: CGFloat { 112 * scale }
+    private var dropZoneDiameter: CGFloat { 136 * scale }
     private var backingScale: CGFloat { window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2 }
 
     private var items: [RingItemLayer] = []
@@ -107,6 +107,8 @@ final class RingView: NSView, NSDraggingSource {
     private var pressedDropZone = false
     private var pressStart = CGPoint.zero
     private var isReordering = false
+    private var previewOrder: [RingItemLayer] = []
+    private var previewSlot = 0
 
     override var isFlipped: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -517,19 +519,41 @@ final class RingView: NSView, NSDraggingSource {
             pressedDropZone = false
             beginDropZoneDrag(with: event)
         } else if let item = pressedItem {
-            isReordering = true
+            if !isReordering {
+                isReordering = true
+                previewOrder = items
+                previewSlot = items.firstIndex { $0 === item } ?? 0
+                setHovered(item, true)
+            }
+
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             item.circle.position = point
             item.circle.zPosition = 50
             CATransaction.commit()
+            previewReorder(item, pointer: point)
+        }
+    }
 
-            let over = items.first { other in
-                other !== item && hypot(point.x - circleCenter(of: other).x, point.y - circleCenter(of: other).y) <= itemDiameter / 2
-            }
-            for other in items where other !== item {
-                setHovered(other, other === over)
-            }
+    /// The dragged circle claims the slot nearest to the pointer; the other
+    /// circles slide around the ring to open that gap.
+    private func previewReorder(_ item: RingItemLayer, pointer: CGPoint) {
+        let count = items.count
+        guard count > 1 else { return }
+
+        let step = 360 / CGFloat(count)
+        let angle = angleFromCenter(pointer, center: CGPoint(x: bounds.midX, y: bounds.midY))
+        let slot = Int((angle / step).rounded()) % count
+        guard slot != previewSlot else { return }
+        previewSlot = slot
+
+        var order = items.filter { $0 !== item }
+        order.insert(item, at: min(slot, order.count))
+        previewOrder = order
+
+        for (index, other) in order.enumerated() where other !== item {
+            other.angle = CGFloat(index) * step
+            withSpring(true) { applyPose(other) }
         }
     }
 
@@ -541,16 +565,13 @@ final class RingView: NSView, NSDraggingSource {
         }
         guard isReordering, let item = pressedItem else { return }
 
-        let point = convert(event.locationInWindow, from: nil)
         item.circle.zPosition = 0
-        let over = items.first { other in
-            other !== item && hypot(point.x - circleCenter(of: other).x, point.y - circleCenter(of: other).y) <= itemDiameter / 2
-        }
-        if let over {
-            DestinationStore.shared.swap(item.destination.id, over.destination.id) // triggers rebuildAll
-        } else {
-            for other in items { setHovered(other, false) }
+        let order = previewOrder.map { $0.destination.id }
+        if order == items.map({ $0.destination.id }) {
+            setHovered(item, false)
             withSpring(true) { applyPose(item) }
+        } else {
+            DestinationStore.shared.reorder(order) // triggers rebuildAll
         }
     }
 

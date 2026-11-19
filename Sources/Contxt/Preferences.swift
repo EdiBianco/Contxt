@@ -52,6 +52,22 @@ final class Preferences: ObservableObject {
         }
     }
 
+    @Published var updateInterval: UpdateInterval {
+        didSet { defaults.set(updateInterval.rawValue, forKey: "updateInterval") }
+    }
+
+    @Published var autoInstallUpdates: Bool {
+        didSet { defaults.set(autoInstallUpdates, forKey: "autoInstallUpdates") }
+    }
+
+    var lastUpdateCheck: Date? {
+        get { defaults.object(forKey: "lastUpdateCheck") as? Date }
+        set {
+            defaults.set(newValue, forKey: "lastUpdateCheck")
+            objectWillChange.send()
+        }
+    }
+
     @Published private(set) var hotKey: HotKey
     @Published var hotKeyOK = true
 
@@ -64,6 +80,8 @@ final class Preferences: ObservableObject {
         let scale = defaults.double(forKey: "orbScale")
         orbScale = scale == 0 ? 1.0 : scale
         theme = Theme(rawValue: defaults.string(forKey: "theme") ?? "") ?? .system
+        updateInterval = UpdateInterval(rawValue: defaults.string(forKey: "updateInterval") ?? "") ?? .weekly
+        autoInstallUpdates = defaults.object(forKey: "autoInstallUpdates") as? Bool ?? true
         if let data = defaults.data(forKey: "hotKey"), let saved = try? JSONDecoder().decode(HotKey.self, from: data) {
             hotKey = saved
         } else {

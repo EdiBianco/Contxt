@@ -21,12 +21,14 @@ enum ContactChannel: String, Codable, CaseIterable {
     case message
     case email
     case whatsapp
+    case telegram
 
     var title: String {
         switch self {
         case .message: return "Messages"
         case .email: return "Mail"
         case .whatsapp: return "WhatsApp"
+        case .telegram: return "Telegram"
         }
     }
 }
@@ -123,6 +125,8 @@ enum Destination {
             case .email: return DestinationBadge(symbol: "envelope.fill", color: .systemBlue)
             case .whatsapp:
                 return DestinationBadge(symbol: "phone.bubble.fill", color: NSColor(calibratedRed: 0.145, green: 0.827, blue: 0.4, alpha: 1))
+            case .telegram:
+                return DestinationBadge(symbol: "paperplane.fill", color: NSColor(calibratedRed: 0.165, green: 0.671, blue: 0.933, alpha: 1))
             }
         case .shortcut:
             return DestinationBadge(symbol: "wand.and.stars", color: .systemPurple)
@@ -144,6 +148,7 @@ enum Destination {
             case .message: return "Message \(label)"
             case .email: return "Email \(label)"
             case .whatsapp: return "WhatsApp \(label)"
+            case .telegram: return "Telegram \(label)"
             }
         case .action(_, _, let action): return action.title
         case .shortcut(_, let label, _): return "Run \u{2018}\(label)\u{2019}"

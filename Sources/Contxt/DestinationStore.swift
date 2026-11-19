@@ -85,10 +85,12 @@ final class DestinationStore: ObservableObject {
         ]
     }
 
-    func swap(_ idA: String, _ idB: String) {
-        guard let a = records.firstIndex(where: { $0.id.uuidString == idA }),
-              let b = records.firstIndex(where: { $0.id.uuidString == idB }), a != b else { return }
-        records.swapAt(a, b)
+    /// Reorders records to match `ids` (every record id, in the new order).
+    func reorder(_ ids: [String]) {
+        let byID = Dictionary(uniqueKeysWithValues: records.map { ($0.id.uuidString, $0) })
+        let ordered = ids.compactMap { byID[$0] }
+        guard ordered.count == records.count else { return }
+        records = ordered
     }
 
     func hasAction(_ action: CommonAction) -> Bool {

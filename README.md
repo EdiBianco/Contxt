@@ -34,7 +34,7 @@ The center circle is the **Drop Zone**, a temporary stack for collecting files f
 | **Scripts** | Runs your script with the dropped file paths as arguments. |
 | **Shortcuts** | Runs a macOS Shortcut with the files as its input. |
 | **Contacts** | Opens Messages or Mail with the files attached and the contact as recipient. |
-| **WhatsApp** | Opens the chat with that contact and copies the files so you can press **⌘V** to attach them. |
+| **WhatsApp, Telegram** | Opens the chat with that contact and copies the files so you can press **⌘V** to attach them. |
 | **Common actions** | Compose a message or email, import to Photos, move to Trash. |
 
 **On the ring**
@@ -42,7 +42,7 @@ The center circle is the **Drop Zone**, a temporary stack for collecting files f
 - A translucent pill in the center spells out the action for the hovered circle, for example *Move to Documents* or *Run 'Resize Images'*. It switches live when you press **⌥**.
 - Icons are the real Finder icons of your folders, apps and scripts, with a small badge showing the kind of action.
 - Hold a dragged file on a folder for a moment and Finder opens it, so you can drop into a subfolder without crowding the ring.
-- Drag one circle onto another to swap their places.
+- Drag a circle around the ring and the others slide aside to make room. **Settings → Ring Order** has the same thing as a list.
 
 **Drop Zone**
 
@@ -54,10 +54,15 @@ The center circle is the **Drop Zone**, a temporary stack for collecting files f
 - Add folders, apps, scripts, Shortcuts and contacts from the menu bar icon, then **Settings…** (⌘,).
 - Light, dark or system appearance, orb size slider, rebindable activation hotkey, start at login.
 
+**Updates**
+
+- Contxt checks GitHub for new releases every day, week or month (or never), and you can check manually from the menu bar.
+- Updates download in the background and are verified against the app's own signing identity. They install and relaunch when Contxt is idle, or when you choose **Restart to Update**.
+
 ## Install
 
-1. Download `Contxt-<version>-macOS.zip` from the [latest release](https://github.com/EdiBianco/Contxt/releases/latest).
-2. Unzip it and move **Contxt.app** to `/Applications`.
+1. Download `Contxt-<version>.dmg` from the [latest release](https://github.com/EdiBianco/Contxt/releases/latest).
+2. Open it and drag **Contxt** onto **Applications**.
 3. The app is signed but not notarized, so on first launch right-click it and choose **Open**. If macOS still blocks it, run:
 
    ```sh
