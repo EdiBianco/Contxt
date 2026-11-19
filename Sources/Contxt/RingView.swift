@@ -80,7 +80,15 @@ final class RingView: NSView, NSDraggingSource {
 
     private var scale: CGFloat { CGFloat(Preferences.shared.orbScale) }
     private var itemDiameter: CGFloat { 104 * scale }
-    private var itemRadius: CGFloat { 215 * scale }
+    /// Grows with the item count so neighbouring circles (at hover size) never
+    /// overlap, capped so the largest circle still fits inside the window.
+    private func itemRadius(count: Int) -> CGFloat {
+        let base = 215 * scale
+        guard count > 2 else { return base }
+        let needed = (itemDiameter * Self.hoverScale + 8) / (2 * sin(.pi / CGFloat(count)))
+        let limit = Self.ringSize / 2 - itemDiameter * Self.hoverScale / 2 - 6
+        return min(max(base, needed), limit)
+    }
     private var dropZoneDiameter: CGFloat { 136 * scale }
     private var backingScale: CGFloat { window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2 }
 
@@ -170,9 +178,10 @@ final class RingView: NSView, NSDraggingSource {
 
         let destinations = DestinationStore.shared.destinations
         let angles = computeItemAngles(destinations.count)
+        let radius = itemRadius(count: destinations.count)
         items = destinations.indices.map { i in
             let item = RingItemLayer(destination: destinations[i], angle: angles[i], diameter: itemDiameter, scale: backingScale)
-            item.restingRadius = itemRadius
+            item.restingRadius = radius
             layer?.addSublayer(item.circle)
             item.orientImages()
             return item
