@@ -276,6 +276,10 @@ struct SettingsView: View {
                             .disabled(updater.state == .checking)
                     }
                 }
+                Divider().padding(.leading, 12)
+                SettingRow(title: "Permissions", subtitle: "Folder access Contxt needs") {
+                    Button("Check") { Permissions.checkAndPrompt() }
+                }
             }
 
             Card {
@@ -522,7 +526,7 @@ private struct ContactsSheet: View {
                                 case .message: return true
                                 case .email: return record.email != nil || rec.wrappedValue.channel == .email
                                 case .whatsapp: return record.phone != nil || rec.wrappedValue.channel == .whatsapp
-                                case .telegram: return record.phone != nil || rec.wrappedValue.channel == .telegram
+                                case .telegram: return record.phone != nil || record.telegram != nil || rec.wrappedValue.channel == .telegram
                                 }
                             }, id: \.self) { Text($0.title).tag($0) }
                         }
@@ -546,10 +550,13 @@ private struct ContactsSheet: View {
 private struct ContactPickerSheet: View {
     @StateObject private var loader = ContactsLoader()
     @State private var query = ""
+    @FocusState private var searchFocused: Bool
     @Environment(\.dismiss) private var dismiss
 
     private var filtered: [ContactEntry] {
-        query.isEmpty ? loader.entries : loader.entries.filter { $0.name.localizedCaseInsensitiveContains(query) }
+        query.isEmpty ? loader.entries : loader.entries.filter {
+            $0.name.localizedCaseInsensitiveContains(query) || ($0.telegram ?? "").localizedCaseInsensitiveContains(query)
+        }
     }
 
     var body: some View {
@@ -577,7 +584,11 @@ private struct ContactPickerSheet: View {
                 }
                 .frame(maxHeight: .infinity)
             case .granted:
-                TextField("Search", text: $query).textFieldStyle(.roundedBorder).padding(12)
+                TextField("Search", text: $query)
+                    .textFieldStyle(.roundedBorder)
+                    .padding(12)
+                    .focused($searchFocused)
+                    .onAppear { DispatchQueue.main.async { searchFocused = true } }
                 List(filtered) { entry in
                     Button { add(entry) } label: {
                         HStack(spacing: 10) {
@@ -585,7 +596,7 @@ private struct ContactPickerSheet: View {
                                 .resizable().scaledToFill().frame(width: 28, height: 28).clipShape(Circle())
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(entry.name).font(.system(size: 13, weight: .medium))
-                                Text(entry.phone ?? entry.email ?? "").font(.caption).foregroundStyle(.secondary)
+                                Text(entry.phone ?? entry.telegram.map { "@" + $0 } ?? entry.email ?? "").font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()
                         }
@@ -604,7 +615,8 @@ private struct ContactPickerSheet: View {
         var record = DestinationRecord(id: id, kind: .contact, name: entry.name)
         record.email = entry.email
         record.phone = entry.phone
-        record.channel = entry.phone != nil ? .message : .email
+        record.telegram = entry.telegram
+        record.channel = entry.phone != nil ? .message : (entry.telegram != nil ? .telegram : .email)
         record.avatarPath = entry.photo.flatMap { DestinationStore.shared.saveAvatar($0, for: id) }
         DestinationStore.shared.records.append(record)
         dismiss()

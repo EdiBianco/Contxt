@@ -16,6 +16,7 @@ struct DestinationRecord: Codable, Identifiable, Equatable {
     var action: CommonAction?
     var email: String?
     var phone: String?
+    var telegram: String?
     var channel: ContactChannel?
     var avatarPath: String?
 
@@ -31,7 +32,7 @@ struct DestinationRecord: Codable, Identifiable, Equatable {
             return .contact(
                 id: id.uuidString,
                 label: name,
-                target: ContactTarget(email: email, phone: phone, channel: channel ?? .message, avatarPath: avatarPath)
+                target: ContactTarget(email: email, phone: phone, telegram: telegram, channel: channel ?? .message, avatarPath: avatarPath)
             )
         case .action:
             return .action(id: id.uuidString, label: name, action: action ?? .trash)

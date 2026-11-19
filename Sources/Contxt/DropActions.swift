@@ -102,12 +102,16 @@ enum DropActions {
     /// files, so open the chat and leave the files on the pasteboard for Cmd+V.
     private static func dropOnChatApp(_ target: ContactTarget, filePaths: [String]) {
         let appName = target.channel == .telegram ? "Telegram" : "WhatsApp"
-        guard let phone = target.phone else {
-            Toast.show("No phone number saved for this contact")
+        let link: String
+        if target.channel == .telegram, let handle = target.telegram {
+            link = "tg://resolve?domain=\(handle)"
+        } else if let phone = target.phone {
+            let digits = phone.filter(\.isNumber)
+            link = target.channel == .telegram ? "tg://resolve?phone=\(digits)" : "whatsapp://send?phone=\(digits)"
+        } else {
+            Toast.show("No phone number or handle saved for this contact")
             return
         }
-        let digits = phone.filter(\.isNumber)
-        let link = target.channel == .telegram ? "tg://resolve?phone=\(digits)" : "whatsapp://send?phone=\(digits)"
         guard let url = URL(string: link), NSWorkspace.shared.urlForApplication(toOpen: url) != nil else {
             Toast.show("\(appName) isn't installed")
             return

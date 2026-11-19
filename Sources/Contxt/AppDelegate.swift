@@ -129,9 +129,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
-        let checkItem = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
-        checkItem.target = self
-        menu.addItem(checkItem)
         updateItem = NSMenuItem(title: "Restart to Update", action: #selector(installUpdate), keyEquivalent: "")
         updateItem.target = self
         updateItem.isHidden = true
@@ -145,9 +142,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        let permissionsItem = NSMenuItem(title: "Check Permissions…", action: #selector(checkPermissions), keyEquivalent: "")
-        permissionsItem.target = self
-        menu.addItem(permissionsItem)
         menu.addItem(.separator())
         let quitItem = NSMenuItem(title: "Quit Contxt", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
@@ -159,16 +153,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SettingsWindowController.shared.show()
     }
 
-    @objc private func checkForUpdates() {
-        Updater.shared.check(userInitiated: true)
-    }
-
     @objc private func installUpdate() {
         Updater.shared.installAndRelaunch()
-    }
-
-    @objc private func checkPermissions() {
-        Permissions.checkAndPrompt()
     }
 
     @objc private func quit() {

@@ -9,6 +9,7 @@ struct ContactEntry: Identifiable {
     let name: String
     let email: String?
     let phone: String?
+    let telegram: String?
     let photo: Data?
 }
 
@@ -30,6 +31,8 @@ final class ContactsLoader: ObservableObject {
                 CNContactFormatter.descriptorForRequiredKeys(for: .fullName),
                 CNContactEmailAddressesKey as CNKeyDescriptor,
                 CNContactPhoneNumbersKey as CNKeyDescriptor,
+                CNContactInstantMessageAddressesKey as CNKeyDescriptor,
+                CNContactSocialProfilesKey as CNKeyDescriptor,
                 CNContactThumbnailImageDataKey as CNKeyDescriptor,
             ]
             let request = CNContactFetchRequest(keysToFetch: keys)
@@ -44,10 +47,30 @@ final class ContactsLoader: ObservableObject {
                     name: name,
                     email: contact.emailAddresses.first.map { String($0.value) },
                     phone: contact.phoneNumbers.first?.value.stringValue,
+                    telegram: Self.telegramHandle(in: contact),
                     photo: contact.thumbnailImageData
                 ))
             }
             DispatchQueue.main.async { self.entries = result }
         }
+    }
+
+    /// Contacts has no Telegram field, so look for a handle the user stored as
+    /// an instant-message or social-profile entry (service Telegram, a t.me
+    /// link, or a bare @name). Returned without the leading "@".
+    private static func telegramHandle(in contact: CNContact) -> String? {
+        var candidates: [(service: String, value: String)] = contact.instantMessageAddresses.map {
+            ($0.value.service, $0.value.username)
+        }
+        candidates += contact.socialProfiles.map { ($0.value.service, $0.value.username) }
+        for (service, raw) in candidates {
+            var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            let isTelegram = service.localizedCaseInsensitiveContains("telegram") || value.contains("t.me/")
+            if let range = value.range(of: "t.me/") { value = String(value[range.upperBound...]) }
+            guard isTelegram || value.hasPrefix("@") else { continue }
+            value = value.trimmingCharacters(in: CharacterSet(charactersIn: "@/ "))
+            if !value.isEmpty { return value }
+        }
+        return nil
     }
 }

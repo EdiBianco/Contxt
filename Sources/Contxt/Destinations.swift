@@ -71,6 +71,7 @@ enum CommonAction: String, Codable, CaseIterable {
 struct ContactTarget {
     var email: String?
     var phone: String?
+    var telegram: String?
     var channel: ContactChannel
     var avatarPath: String?
 }
