@@ -372,19 +372,22 @@ private struct SheetFrame<Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Image(systemName: symbol)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 40, height: 40)
-                    .background(Color.primary.opacity(0.08), in: Circle())
+            HStack(spacing: 10) {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left").font(.system(size: 13, weight: .semibold))
+                }
+                .buttonStyle(.borderless)
+                .help("Back to Settings")
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.headline)
+                    Text(title).font(.system(size: 17, weight: .semibold))
                     Text(subtitle).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
             }
-            .padding(16)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
             Divider()
             if scrolls {
                 ScrollView {
@@ -393,10 +396,6 @@ private struct SheetFrame<Content: View>: View {
             } else {
                 content
             }
-            Divider()
-            Button("Close") { dismiss() }
-                .keyboardShortcut(.defaultAction)
-                .padding(12)
         }
         .frame(width: 460, height: 500)
     }
@@ -441,6 +440,7 @@ private struct FoldersSheet: View {
 
     var body: some View {
         SheetFrame(symbol: "folder.fill", title: "Folders & Locations", subtitle: "Where dropped files are moved or copied") {
+            SectionLabel("Folders").frame(maxWidth: .infinity, alignment: .leading)
             Card {
                 let folders = store.records.filter { $0.kind == .folder }
                 if folders.isEmpty {
@@ -486,6 +486,7 @@ private struct AppsSheet: View {
 
     var body: some View {
         SheetFrame(symbol: "app.badge.fill", title: "Applications & Scripts", subtitle: "Open, share or process dropped files") {
+            SectionLabel("Built-in actions").frame(maxWidth: .infinity, alignment: .leading)
             Card {
                 ForEach(CommonAction.allCases, id: \.self) { action in
                     HStack(spacing: 10) {
@@ -505,6 +506,7 @@ private struct AppsSheet: View {
                 }
             }
 
+            SectionLabel("Your apps and scripts").frame(maxWidth: .infinity, alignment: .leading)
             Card {
                 let custom = store.records.filter { $0.kind == .app || $0.kind == .script }
                 if custom.isEmpty {
@@ -551,6 +553,7 @@ private struct ContactsSheet: View {
 
     var body: some View {
         SheetFrame(symbol: "person.crop.circle.fill", title: "Contacts", subtitle: "Send dropped files to a person") {
+            SectionLabel("People").frame(maxWidth: .infinity, alignment: .leading)
             Card {
                 let contacts = store.records.filter { $0.kind == .contact }
                 if contacts.isEmpty {
@@ -561,7 +564,12 @@ private struct ContactsSheet: View {
                     HStack(spacing: 10) {
                         Image(nsImage: ContactAvatar.image(name: record.name, path: record.avatarPath))
                             .resizable().frame(width: 30, height: 30)
-                        Text(record.name).font(.system(size: 13, weight: .medium))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(record.name).font(.system(size: 13, weight: .medium))
+                            if let detail = record.telegram.map({ "@" + $0 }) ?? record.phone ?? record.email {
+                                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                        }
                         Spacer(minLength: 6)
                         Picker("", selection: Binding(get: { rec.wrappedValue.channel ?? .message }, set: { rec.wrappedValue.channel = $0 })) {
                             ForEach(ContactChannel.allCases.filter { channel in
@@ -782,6 +790,7 @@ private struct DropZoneSheet: View {
                 .font(.caption).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+            SectionLabel("Stacked files").frame(maxWidth: .infinity, alignment: .leading)
             Card {
                 if dropZone.urls.isEmpty {
                     Text("Nothing stacked").font(.caption).foregroundStyle(.secondary).padding(14)
