@@ -75,7 +75,7 @@ final class RingView: NSView, NSDraggingSource {
     private static let baseColor = dynamic(dark: NSColor(white: 0.10, alpha: 0.78), light: NSColor(white: 1.0, alpha: 0.74))
     private static let borderColor = dynamic(dark: NSColor(white: 1, alpha: 0.16), light: NSColor(white: 0, alpha: 0.10))
     private static let hoverColor = NSColor.controlAccentColor.withAlphaComponent(0.88)
-    private static let wedgeColor = dynamic(dark: NSColor(white: 1, alpha: 0.09), light: NSColor(white: 1, alpha: 0.58))
+    private static let wedgeColor = dynamic(dark: NSColor(white: 1, alpha: 0.06), light: NSColor(white: 1, alpha: 0.30))
     private static let hoverFill = dynamic(dark: NSColor(white: 1, alpha: 0.22), light: NSColor(white: 1, alpha: 0.96))
     private static let neutralRim = dynamic(dark: NSColor(white: 1, alpha: 0.45), light: NSColor(white: 0, alpha: 0.28))
     private static let pillColor = dynamic(dark: NSColor(white: 0.06, alpha: 0.86), light: NSColor(white: 1.0, alpha: 0.92))
@@ -109,6 +109,10 @@ final class RingView: NSView, NSDraggingSource {
     private var trackingArea: NSTrackingArea?
 
     private let wedgeLayer = CAShapeLayer()
+    /// Real backdrop blur, cut to the wedge shapes with a mask image.
+    private let blurView = NSVisualEffectView()
+    private var wedgeShape: CGPath?
+    private var blurMaskDirty = true
     private let dropZoneLayer = CAShapeLayer()
     private let dropZoneIcon = CALayer()
     private let dropZoneCaption = CATextLayer()
@@ -139,6 +143,14 @@ final class RingView: NSView, NSDraggingSource {
         wantsLayer = true
         registerForDraggedTypes([.fileURL, .URL, NSPasteboard.PasteboardType("NSFilenamesPboardType")])
 
+        blurView.material = .hudWindow
+        blurView.blendingMode = .behindWindow
+        blurView.state = .active
+        blurView.autoresizingMask = [.width, .height]
+        blurView.frame = bounds
+        addSubview(blurView, positioned: .below, relativeTo: nil)
+        blurView.wantsLayer = true
+        blurView.layer?.zPosition = -2
         wedgeLayer.zPosition = -1
         wedgeLayer.lineJoin = .round
         for sublayer in [wedgeLayer, dropZoneLayer, pillLayer] { layer?.addSublayer(sublayer) }
@@ -202,7 +214,9 @@ final class RingView: NSView, NSDraggingSource {
             return item
         }
 
-        wedgeLayer.path = wedgePath(count: destinations.count, radius: radius)
+        wedgeShape = wedgePath(count: destinations.count, radius: radius)
+        wedgeLayer.path = wedgeShape
+        blurMaskDirty = true
 
         let side = dropZoneDiameter
         dropZoneLayer.bounds = CGRect(x: 0, y: 0, width: side, height: side)
@@ -227,6 +241,7 @@ final class RingView: NSView, NSDraggingSource {
 
     private func layoutAll() {
         wedgeLayer.position = CGPoint(x: bounds.midX, y: bounds.midY)
+        updateBlurMask()
         wedgeLayer.fillColor = resolved(Self.wedgeColor)
         wedgeLayer.strokeColor = nil
         dropZoneLayer.position = CGPoint(x: bounds.midX, y: bounds.midY)
@@ -285,6 +300,28 @@ final class RingView: NSView, NSDraggingSource {
         item.circle.fillColor = item.isHovered ? resolved(Self.hoverFill) : nil
         item.circle.strokeColor = nil
         updateRim(item)
+    }
+
+    private var blurMaskSize = CGSize.zero
+
+    private func updateBlurMask() {
+        blurView.frame = bounds
+        guard let shape = wedgeShape else {
+            blurView.isHidden = true
+            return
+        }
+        blurView.isHidden = false
+        guard blurMaskDirty || blurMaskSize != bounds.size, bounds.width > 0 else { return }
+        blurMaskDirty = false
+        blurMaskSize = bounds.size
+        blurView.maskImage = NSImage(size: bounds.size, flipped: true) { _ in
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            context.translateBy(x: self.bounds.midX, y: self.bounds.midY)
+            context.addPath(shape)
+            context.setFillColor(NSColor.black.cgColor)
+            context.fillPath()
+            return true
+        }
     }
 
     /// Wedge segments behind the circles: one neutral frosted slice per item.
