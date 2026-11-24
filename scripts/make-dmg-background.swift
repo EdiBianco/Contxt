@@ -5,7 +5,8 @@
 import AppKit
 
 let width: CGFloat = 660
-let height: CGFloat = 400
+let height: CGFloat = 440
+let footer: CGFloat = 40 // extra strip at the bottom for the Gatekeeper hint
 
 func draw() {
     let canvas = NSRect(x: 0, y: 0, width: width, height: height)
@@ -13,6 +14,12 @@ func draw() {
     NSGradient(colors: [NSColor(calibratedRed: 0.105, green: 0.14, blue: 0.22, alpha: 1),
                         NSColor(calibratedRed: 0.075, green: 0.10, blue: 0.17, alpha: 1)])!
         .draw(in: canvas, angle: -90)
+
+    // Everything below keeps its original coordinates, shifted up by the footer strip.
+    NSGraphicsContext.saveGraphicsState()
+    let shift = NSAffineTransform()
+    shift.translateX(by: 0, yBy: footer)
+    shift.concat()
 
     // Soft glow under the illustration.
     let glow = NSGradient(colors: [NSColor(calibratedRed: 0.20, green: 0.45, blue: 0.80, alpha: 0.42),
@@ -73,6 +80,27 @@ func draw() {
     ]
     let textSize = text.size(withAttributes: textAttrs)
     text.draw(at: NSPoint(x: (width - textSize.width) / 2, y: 14), withAttributes: textAttrs)
+    NSGraphicsContext.restoreGraphicsState()
+
+    // Gatekeeper hint in the footer strip.
+    let hint = "Blocked on first launch? Paste this in Terminal:" as NSString
+    let hintAttrs: [NSAttributedString.Key: Any] = [
+        .font: NSFont.systemFont(ofSize: 11, weight: .regular),
+        .foregroundColor: NSColor.white.withAlphaComponent(0.6),
+    ]
+    let hintSize = hint.size(withAttributes: hintAttrs)
+    hint.draw(at: NSPoint(x: (width - hintSize.width) / 2, y: 22), withAttributes: hintAttrs)
+
+    let command = "xattr -dr com.apple.quarantine /Applications/Contxt.app" as NSString
+    let commandAttrs: [NSAttributedString.Key: Any] = [
+        .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
+        .foregroundColor: NSColor.white.withAlphaComponent(0.92),
+    ]
+    let commandSize = command.size(withAttributes: commandAttrs)
+    NSColor.white.withAlphaComponent(0.1).setFill()
+    NSBezierPath(roundedRect: NSRect(x: (width - commandSize.width) / 2 - 10, y: 3, width: commandSize.width + 20, height: 17),
+                 xRadius: 8, yRadius: 8).fill()
+    command.draw(at: NSPoint(x: (width - commandSize.width) / 2, y: 5), withAttributes: commandAttrs)
 }
 
 func render(scale: CGFloat) -> Data {

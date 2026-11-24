@@ -10,7 +10,7 @@ symlinks = {"Applications": "/Applications"}
 icon = "Resources/AppIcon.icns"
 background = "Resources/dmg-background.tiff"
 
-window_rect = ((200, 140), (660, 400))
+window_rect = ((200, 140), (660, 440))
 default_view = "icon-view"
 show_status_bar = False
 show_tab_view = False

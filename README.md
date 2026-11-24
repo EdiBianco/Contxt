@@ -61,15 +61,25 @@ The center circle is the **Drop Zone**, a temporary stack for collecting files f
 
 ## Install
 
+Contxt is signed but not notarized, so macOS Gatekeeper blocks a downloaded copy on first launch (on macOS 15 and later, right-click **Open** no longer works for it). Pick one of these:
+
+**Terminal install (no warning).** The script downloads the latest release with curl, which does not set the quarantine flag, and installs it in Applications. [Read it first](scripts/install.sh) if you like.
+
+```sh
+curl -fsSL https://thecontxt.com/install.sh | sh
+```
+
+**DMG install.**
+
 1. Download `Contxt-<version>.dmg` from the [latest release](https://github.com/EdiBianco/Contxt/releases/latest).
 2. Open it and drag **Contxt** onto **Applications**.
-3. The app is signed but not notarized, so on first launch right-click it and choose **Open**. If macOS still blocks it, run:
+3. If macOS blocks the app, run this once in Terminal (the command is also printed on the DMG window), or open **System Settings > Privacy & Security** and click **Open Anyway**:
 
    ```sh
    xattr -dr com.apple.quarantine /Applications/Contxt.app
    ```
 
-4. Press **⌘⇧D**. Contxt lives in the menu bar, with no Dock icon.
+Then press **⌘⇧D**. Contxt lives in the menu bar, with no Dock icon.
 
 ### Permissions
 
