@@ -32,17 +32,17 @@ func draw() {
     glow.draw(fromCenter: .zero, radius: 0, toCenter: .zero, radius: 150, options: [])
     NSGraphicsContext.restoreGraphicsState()
 
-    // Ring motif (matches the app icon): six dots around a center dot.
+    // Ring motif (matches the app icon): eight dots around a blue center dot.
     let center = CGPoint(x: width / 2, y: 290)
-    NSColor(calibratedRed: 0.353, green: 0.549, blue: 1, alpha: 1).setFill()
-    for i in 0..<6 {
-        let angle = CGFloat(i) * 2 * .pi / 6 - .pi / 2
-        let x = center.x + cos(angle) * 40
-        let y = center.y - sin(angle) * 40
-        NSBezierPath(ovalIn: CGRect(x: x - 12, y: y - 12, width: 24, height: 24)).fill()
-    }
     NSColor(calibratedWhite: 0.96, alpha: 1).setFill()
-    NSBezierPath(ovalIn: CGRect(x: center.x - 10, y: center.y - 10, width: 20, height: 20)).fill()
+    for i in 0..<8 {
+        let angle = CGFloat(i) * .pi / 4
+        let x = center.x + sin(angle) * 44
+        let y = center.y + cos(angle) * 44
+        NSBezierPath(ovalIn: CGRect(x: x - 9, y: y - 9, width: 18, height: 18)).fill()
+    }
+    NSColor(calibratedRed: 0.43, green: 0.66, blue: 1, alpha: 1).setFill()
+    NSBezierPath(ovalIn: CGRect(x: center.x - 14, y: center.y - 14, width: 28, height: 28)).fill()
 
     // Title.
     let title = "Contxt" as NSString

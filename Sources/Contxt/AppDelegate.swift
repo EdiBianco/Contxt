@@ -161,31 +161,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.terminate(nil)
     }
 
-    /// Same ring motif as RingView: a center dot with items around it.
+    /// Dashed ring with a center dot, matching the website logo.
     /// Drawn in code (not loaded from a bundled asset) so there's no
     /// resource-lookup failure path that leaves the menu bar item blank.
     private static func makeMenuBarIcon(size: CGFloat) -> NSImage {
         NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
+            // Dashed ring around a center dot, like the website logo.
             let center = CGPoint(x: rect.midX, y: rect.midY)
-            let radius = size * 0.32
-            let dotDiameter = size * 0.22
-            let centerDiameter = size * 0.26
+            let radius = size * 0.37
+            let centerDiameter = size * 0.30
 
             NSColor.black.setFill()
+            NSColor.black.setStroke()
+            let ring = NSBezierPath(ovalIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2))
+            ring.lineWidth = size * 0.10
+            ring.lineCapStyle = .round
+            let cycle = 2 * .pi * radius / 8
+            ring.setLineDash([cycle * 0.34, cycle * 0.66], count: 2, phase: 0)
+            ring.stroke()
+
             NSBezierPath(ovalIn: CGRect(
                 x: center.x - centerDiameter / 2, y: center.y - centerDiameter / 2,
                 width: centerDiameter, height: centerDiameter
             )).fill()
-
-            for i in 0..<6 {
-                let angle = CGFloat(i) * 2 * .pi / 6 - .pi / 2
-                let x = center.x + cos(angle) * radius
-                let y = center.y + sin(angle) * radius
-                NSBezierPath(ovalIn: CGRect(
-                    x: x - dotDiameter / 2, y: y - dotDiameter / 2,
-                    width: dotDiameter, height: dotDiameter
-                )).fill()
-            }
             return true
         }
     }
