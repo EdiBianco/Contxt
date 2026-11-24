@@ -16,6 +16,8 @@ private final class RingItemLayer {
     let circle = CAShapeLayer()
     let icon = CALayer()
     let badge = CALayer()
+    let rim = CAShapeLayer()
+    var rimColor: NSColor?
     var isHovered = false
     var restingRadius: CGFloat = 0
 
@@ -28,9 +30,11 @@ private final class RingItemLayer {
         circle.path = CGPath(ellipseIn: circle.bounds, transform: nil)
         circle.lineWidth = 1
 
-        let iconSize = diameter * 0.58
+        let iconSize = diameter * 0.70
         var proposed = CGRect(x: 0, y: 0, width: iconSize * scale, height: iconSize * scale)
-        icon.contents = destination.iconImage().cgImage(forProposedRect: &proposed, context: nil, hints: nil)
+        let iconImage = destination.iconImage()
+        rimColor = RingView.dominantColor(of: iconImage)
+        icon.contents = iconImage.cgImage(forProposedRect: &proposed, context: nil, hints: nil)
         icon.contentsScale = scale
         icon.bounds = CGRect(x: 0, y: 0, width: iconSize, height: iconSize)
         icon.position = CGPoint(x: diameter / 2, y: diameter / 2)
@@ -38,13 +42,18 @@ private final class RingItemLayer {
         icon.shadowRadius = 3
         icon.shadowOffset = CGSize(width: 0, height: 1)
         circle.addSublayer(icon)
+        rim.fillColor = nil
+        rim.lineCap = .round
+        circle.addSublayer(rim)
 
-        if let info = destination.badge {
+        // Only contacts get a corner badge (their channel); folders, apps and
+        // tools stay clean so the user's own icon is what you recognise.
+        if case .contact = destination, let info = destination.badge {
             let badgeSize = diameter * 0.27
             badge.contents = RingView.badgeImage(symbol: info.symbol, color: info.color, size: badgeSize, scale: scale)
             badge.contentsScale = scale
             badge.bounds = CGRect(x: 0, y: 0, width: badgeSize, height: badgeSize)
-            badge.position = CGPoint(x: diameter * 0.80, y: diameter * 0.80)
+            badge.position = CGPoint(x: diameter * 0.82, y: diameter * 0.82)
             circle.addSublayer(badge)
         }
     }
@@ -66,6 +75,9 @@ final class RingView: NSView, NSDraggingSource {
     private static let baseColor = dynamic(dark: NSColor(white: 0.10, alpha: 0.78), light: NSColor(white: 1.0, alpha: 0.74))
     private static let borderColor = dynamic(dark: NSColor(white: 1, alpha: 0.16), light: NSColor(white: 0, alpha: 0.10))
     private static let hoverColor = NSColor.controlAccentColor.withAlphaComponent(0.88)
+    private static let wedgeColor = dynamic(dark: NSColor(white: 1, alpha: 0.09), light: NSColor(white: 1, alpha: 0.58))
+    private static let hoverFill = dynamic(dark: NSColor(white: 1, alpha: 0.22), light: NSColor(white: 1, alpha: 0.96))
+    private static let neutralRim = dynamic(dark: NSColor(white: 1, alpha: 0.45), light: NSColor(white: 0, alpha: 0.28))
     private static let pillColor = dynamic(dark: NSColor(white: 0.06, alpha: 0.86), light: NSColor(white: 1.0, alpha: 0.92))
     private static let pillTextColor = dynamic(dark: NSColor.white, light: NSColor(white: 0.1, alpha: 1))
 
@@ -96,6 +108,7 @@ final class RingView: NSView, NSDraggingSource {
     private var hoveredID: String?
     private var trackingArea: NSTrackingArea?
 
+    private let wedgeLayer = CAShapeLayer()
     private let dropZoneLayer = CAShapeLayer()
     private let dropZoneIcon = CALayer()
     private let dropZoneCaption = CATextLayer()
@@ -126,7 +139,9 @@ final class RingView: NSView, NSDraggingSource {
         wantsLayer = true
         registerForDraggedTypes([.fileURL, .URL, NSPasteboard.PasteboardType("NSFilenamesPboardType")])
 
-        for sublayer in [dropZoneLayer, pillLayer] { layer?.addSublayer(sublayer) }
+        wedgeLayer.zPosition = -1
+        wedgeLayer.lineJoin = .round
+        for sublayer in [wedgeLayer, dropZoneLayer, pillLayer] { layer?.addSublayer(sublayer) }
         dropZoneLayer.addSublayer(dropZoneIcon)
         dropZoneLayer.addSublayer(dropZoneCaption)
         dropZoneLayer.addSublayer(dropZoneCount)
@@ -187,6 +202,8 @@ final class RingView: NSView, NSDraggingSource {
             return item
         }
 
+        wedgeLayer.path = wedgePath(count: destinations.count, radius: radius)
+
         let side = dropZoneDiameter
         dropZoneLayer.bounds = CGRect(x: 0, y: 0, width: side, height: side)
         dropZoneLayer.path = CGPath(ellipseIn: dropZoneLayer.bounds, transform: nil)
@@ -209,6 +226,9 @@ final class RingView: NSView, NSDraggingSource {
     }
 
     private func layoutAll() {
+        wedgeLayer.position = CGPoint(x: bounds.midX, y: bounds.midY)
+        wedgeLayer.fillColor = resolved(Self.wedgeColor)
+        wedgeLayer.strokeColor = nil
         dropZoneLayer.position = CGPoint(x: bounds.midX, y: bounds.midY)
         pillLayer.position = CGPoint(x: bounds.midX, y: bounds.midY)
         for item in items { applyPose(item) }
@@ -262,15 +282,91 @@ final class RingView: NSView, NSDraggingSource {
         let s: CGFloat = item.isHovered ? Self.hoverScale : 1.0
         item.circle.position = circleCenter(of: item)
         item.circle.setAffineTransform(CGAffineTransform(scaleX: s, y: s))
-        item.circle.fillColor = resolved(item.isHovered ? Self.hoverColor : Self.baseColor)
-        item.circle.strokeColor = resolved(Self.borderColor)
+        item.circle.fillColor = item.isHovered ? resolved(Self.hoverFill) : nil
+        item.circle.strokeColor = nil
+        updateRim(item)
+    }
+
+    /// Wedge segments behind the circles: one neutral frosted slice per item.
+    private func wedgePath(count: Int, radius: CGFloat) -> CGPath? {
+        guard count >= 3 else { return nil }
+        let path = CGMutablePath()
+        let step = 360 / CGFloat(count)
+        let gap: CGFloat = 3
+        let inner = radius - itemDiameter * 0.62
+        let outer = radius + itemDiameter * 0.62
+        let samples = max(6, Int(step / 4))
+        for k in 0..<count {
+            let a0 = CGFloat(k) * step - step / 2 + gap / 2
+            let span = step - gap
+            for i in 0...samples {
+                let point = direction(angleDeg: a0 + span * CGFloat(i) / CGFloat(samples), radius: outer)
+                i == 0 ? path.move(to: point) : path.addLine(to: point)
+            }
+            for i in stride(from: samples, through: 0, by: -1) {
+                path.addLine(to: direction(angleDeg: a0 + span * CGFloat(i) / CGFloat(samples), radius: inner))
+            }
+            path.closeSubpath()
+        }
+        return path
+    }
+
+    /// Thin arc on the outer edge of the item's wedge, tinted from its icon.
+    private func updateRim(_ item: RingItemLayer) {
+        let d = itemDiameter
+        let outer = item.restingRadius + d * 0.58
+        let span = min(0.7 * 360 / CGFloat(max(items.count, 1)), 44)
+        let origin = direction(angleDeg: item.angle, radius: item.restingRadius)
+        let path = CGMutablePath()
+        let segments = 10
+        for i in 0...segments {
+            let q = direction(angleDeg: item.angle - span / 2 + span * CGFloat(i) / CGFloat(segments), radius: outer)
+            let point = CGPoint(x: d / 2 + q.x - origin.x, y: d / 2 + q.y - origin.y)
+            i == 0 ? path.move(to: point) : path.addLine(to: point)
+        }
+        item.rim.path = path
+        item.rim.strokeColor = resolved(item.rimColor ?? Self.neutralRim)
+        item.rim.lineWidth = item.isHovered ? 4 : 2.5
+    }
+
+    /// Average of the vivid pixels of an icon; nil when it is grayscale.
+    static func dominantColor(of image: NSImage) -> NSColor? {
+        let n = 16
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: n, pixelsHigh: n, bitsPerSample: 8, samplesPerPixel: 4,
+            hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+        ), let context = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        image.draw(in: NSRect(x: 0, y: 0, width: n, height: n))
+        NSGraphicsContext.restoreGraphicsState()
+
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, total: CGFloat = 0
+        for y in 0..<n {
+            for x in 0..<n {
+                guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB), c.alphaComponent > 0.5 else { continue }
+                let weight = c.saturationComponent * c.saturationComponent * (0.3 + c.brightnessComponent)
+                r += c.redComponent * weight; g += c.greenComponent * weight; b += c.blueComponent * weight
+                total += weight
+            }
+        }
+        guard total > 1.5 else { return nil }
+        let color = NSColor(deviceRed: r / total, green: g / total, blue: b / total, alpha: 1)
+        // Keep the rim visible on both light and dark wallpapers.
+        return NSColor(
+            deviceHue: color.hueComponent,
+            saturation: max(color.saturationComponent, 0.45),
+            brightness: min(max(color.brightnessComponent, 0.6), 0.92),
+            alpha: 1
+        )
     }
 
     private func applyDropZonePose() {
         let s: CGFloat = dropZoneHovered ? 1.1 : 1.0
         dropZoneLayer.setAffineTransform(CGAffineTransform(scaleX: s, y: s))
-        dropZoneLayer.fillColor = resolved(dropZoneHovered ? Self.hoverColor : Self.baseColor)
-        dropZoneLayer.strokeColor = resolved(Self.borderColor)
+        dropZoneLayer.fillColor = resolved(dropZoneHovered ? Self.hoverFill : Self.baseColor)
+        dropZoneLayer.strokeColor = resolved(dropZoneHovered ? Self.hoverColor : Self.borderColor)
+        dropZoneLayer.lineWidth = dropZoneHovered ? 2.5 : 1
     }
 
     /// Animates only the one circle whose state flipped, so moving inside a
