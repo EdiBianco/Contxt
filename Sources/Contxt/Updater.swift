@@ -20,6 +20,15 @@ enum UpdateInterval: String, CaseIterable {
         }
     }
 
+    var shortTitle: String {
+        switch self {
+        case .daily: return "Day"
+        case .weekly: return "Week"
+        case .monthly: return "Month"
+        case .never: return "Never"
+        }
+    }
+
     var seconds: TimeInterval? {
         switch self {
         case .daily: return 86_400

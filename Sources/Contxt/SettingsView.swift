@@ -12,8 +12,8 @@ private struct Card<Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) { content }
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.06)))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.08)))
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.08)))
     }
 }
 
@@ -38,26 +38,64 @@ private struct SettingRow<Control: View>: View {
     }
 }
 
+/// Overlapped preview of the user's own icons, so a category row shows what is inside it.
+private struct IconStack: View {
+    let icons: [NSImage]
+
+    var body: some View {
+        HStack(spacing: -8) {
+            ForEach(Array(icons.enumerated()), id: \.offset) { _, image in
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 22, height: 22)
+            }
+        }
+    }
+}
+
+/// One small keycap per character of a shortcut such as "\u{2325}\u{2318}D".
+private struct KeyCaps: View {
+    let shortcut: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(Array(shortcut.enumerated()), id: \.offset) { _, character in
+                Text(String(character))
+                    .font(.system(size: 12, weight: .medium))
+                    .frame(minWidth: 22)
+                    .padding(.vertical, 2)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.18)))
+            }
+        }
+    }
+}
+
+private struct SectionLabel: View {
+    let title: String
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        Text(title).font(.caption).foregroundStyle(.secondary).padding(.leading, 4)
+    }
+}
+
 private struct NavRow: View {
-    let symbol: String
-    let color: Color
     let title: String
     let subtitle: String
+    var icons: [NSImage] = []
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(color)
-                    .frame(width: 26, height: 26)
-                    .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 7))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title).font(.system(size: 13, weight: .medium))
                     Text(subtitle).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
+                IconStack(icons: icons)
                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 12)
@@ -209,23 +247,26 @@ struct SettingsView: View {
         store.records.filter { kinds.contains($0.kind) }.count
     }
 
+    private func icons(_ kinds: DestinationRecord.Kind...) -> [NSImage] {
+        store.records.filter { kinds.contains($0.kind) }.prefix(3).map { $0.destination.iconImage() }
+    }
+
     var body: some View {
         VStack(spacing: 14) {
-            VStack(spacing: 4) {
+            HStack(spacing: 12) {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
-                    .frame(width: 76, height: 76)
-                Text("Contxt").font(.system(size: 20, weight: .bold))
-                Text("Drag-and-drop everything").font(.caption).foregroundStyle(.secondary)
-                HStack(spacing: 5) {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                    Text("\(store.records.count) items configured. Press \(prefs.hotKey.display) to activate")
-                        .font(.caption)
+                    .frame(width: 44, height: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Contxt").font(.system(size: 17, weight: .semibold))
+                    Text("\(store.records.count) items configured").font(.caption).foregroundStyle(.secondary)
                 }
-                .padding(.top, 2)
+                Spacer()
+                KeyCaps(shortcut: prefs.hotKey.display)
             }
-            .padding(.top, 4)
+            .padding(.horizontal, 4)
 
+            SectionLabel("General")
             Card {
                 SettingRow(title: "Start at Login", subtitle: "Launch Contxt when you sign in") {
                     Toggle("", isOn: Binding(get: { prefs.launchAtLogin }, set: { prefs.setLaunchAtLogin($0) }))
@@ -237,8 +278,9 @@ struct SettingsView: View {
                     Picker("", selection: $prefs.theme) {
                         ForEach(Theme.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
+                    .pickerStyle(.segmented)
                     .labelsHidden()
-                    .frame(width: 100)
+                    .frame(width: 170)
                 }
                 Divider().padding(.leading, 12)
                 SettingRow(title: "Orb Size", subtitle: "Size of the circles on the ring") {
@@ -255,13 +297,15 @@ struct SettingsView: View {
                 }
             }
 
+            SectionLabel("Updates")
             Card {
                 SettingRow(title: "Check for Updates", subtitle: "From GitHub releases") {
                     Picker("", selection: $prefs.updateInterval) {
-                        ForEach(UpdateInterval.allCases, id: \.self) { Text($0.title).tag($0) }
+                        ForEach(UpdateInterval.allCases, id: \.self) { Text($0.shortTitle).tag($0) }
                     }
+                    .pickerStyle(.segmented)
                     .labelsHidden()
-                    .frame(width: 120)
+                    .frame(width: 210)
                 }
                 Divider().padding(.leading, 12)
                 SettingRow(title: "Install Automatically", subtitle: "Restart to update when Contxt is idle") {
@@ -282,24 +326,23 @@ struct SettingsView: View {
                 }
             }
 
+            SectionLabel("Destinations")
             Card {
-                NavRow(symbol: "tray.and.arrow.down.fill", color: .teal, title: "Drop Zone",
-                       subtitle: "\(dropZone.urls.count) files stacked") { sheet = .dropZone }
-                Divider().padding(.leading, 50)
-                NavRow(symbol: "folder.fill", color: .blue, title: "Folders & Locations",
-                       subtitle: "\(count(.folder)) folders configured") { sheet = .folders }
-                Divider().padding(.leading, 50)
-                NavRow(symbol: "app.badge.fill", color: .orange, title: "Applications & Scripts",
-                       subtitle: "\(count(.app, .script, .action)) configured") { sheet = .apps }
-                Divider().padding(.leading, 50)
-                NavRow(symbol: "wand.and.stars", color: .purple, title: "Shortcuts",
-                       subtitle: "\(count(.shortcut)) shortcuts configured") { sheet = .shortcuts }
-                Divider().padding(.leading, 50)
-                NavRow(symbol: "person.crop.circle.fill", color: .green, title: "Contacts",
-                       subtitle: "\(count(.contact)) contacts configured") { sheet = .contacts }
-                Divider().padding(.leading, 50)
-                NavRow(symbol: "arrow.up.arrow.down", color: .pink, title: "Ring Order",
-                       subtitle: "Drag to arrange the circles") { sheet = .order }
+                NavRow(title: "Drop Zone", subtitle: "\(dropZone.urls.count) files stacked") { sheet = .dropZone }
+                Divider().padding(.leading, 12)
+                NavRow(title: "Folders & Locations", subtitle: "\(count(.folder)) folders configured",
+                       icons: icons(.folder)) { sheet = .folders }
+                Divider().padding(.leading, 12)
+                NavRow(title: "Applications & Scripts", subtitle: "\(count(.app, .script, .action)) configured",
+                       icons: icons(.app, .script, .action)) { sheet = .apps }
+                Divider().padding(.leading, 12)
+                NavRow(title: "Shortcuts", subtitle: "\(count(.shortcut)) shortcuts configured",
+                       icons: icons(.shortcut)) { sheet = .shortcuts }
+                Divider().padding(.leading, 12)
+                NavRow(title: "Contacts", subtitle: "\(count(.contact)) contacts configured",
+                       icons: icons(.contact)) { sheet = .contacts }
+                Divider().padding(.leading, 12)
+                NavRow(title: "Ring Order", subtitle: "Drag to arrange the circles") { sheet = .order }
             }
         }
         .padding(18)
@@ -332,9 +375,9 @@ private struct SheetFrame<Content: View>: View {
             HStack(spacing: 12) {
                 Image(systemName: symbol)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(.secondary)
                     .frame(width: 40, height: 40)
-                    .background(Color.accentColor.opacity(0.16), in: Circle())
+                    .background(Color.primary.opacity(0.08), in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.headline)
                     Text(subtitle).font(.caption).foregroundStyle(.secondary)
