@@ -11,7 +11,7 @@
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-black?style=for-the-badge&logo=apple)
 ![Swift](https://img.shields.io/badge/Swift-5.9-F05138?style=for-the-badge&logo=swift&logoColor=white)
 
-[**Download the latest release**](https://github.com/EdiBianco/Contxt/releases/latest)
+[**Install Now!**](#install)
 
 <img src="docs/contxt-demo.gif" width="720" alt="Dragging a file onto the Contxt ring and dropping it on Downloads, then on a Telegram contact" />
 
