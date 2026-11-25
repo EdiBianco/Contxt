@@ -13,6 +13,8 @@
 
 [**Download the latest release**](https://github.com/EdiBianco/Contxt/releases/latest)
 
+<img src="docs/contxt-demo.gif" width="720" alt="Dragging a file onto the Contxt ring and dropping it on Downloads, then on a Telegram contact" />
+
 </div>
 
 ---
