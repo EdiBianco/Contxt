@@ -1,6 +1,6 @@
 // One-off asset generator for the app icon (not part of the app).
 // Run: swift scripts/make-app-icon.swift <out-dir>, then: iconutil -c icns <out-dir>/AppIcon.iconset
-// Matches the website favicon: eight dots on a ring around a blue center, on a dark squircle.
+// Six curved dashes on a ring around a blue center, on a dark squircle (matches the menu bar icon).
 
 import AppKit
 
@@ -33,12 +33,15 @@ func draw(size: CGFloat) -> Data {
         .draw(in: squircle, angle: -90)
 
     let center = CGPoint(x: 512 * s, y: 512 * s)
-    NSColor.white.withAlphaComponent(0.96).setFill()
-    for i in 0..<8 {
-        let angle = CGFloat(i) * .pi / 4
-        let x = center.x + sin(angle) * 257 * s
-        let y = center.y + cos(angle) * 257 * s
-        NSBezierPath(ovalIn: CGRect(x: x - 67 * s, y: y - 67 * s, width: 134 * s, height: 134 * s)).fill()
+    NSColor.white.withAlphaComponent(0.96).setStroke()
+    for i in 0..<6 {
+        // Curved dash: an arc segment on the ring, centered on each of the six positions.
+        let mid = CGFloat(i) * 60 + 90
+        let arc = NSBezierPath()
+        arc.appendArc(withCenter: center, radius: 257 * s, startAngle: mid - 17, endAngle: mid + 17)
+        arc.lineWidth = 72 * s
+        arc.lineCapStyle = .round
+        arc.stroke()
     }
     NSColor(calibratedRed: 0.43, green: 0.66, blue: 1, alpha: 1).setFill()
     NSBezierPath(ovalIn: CGRect(x: center.x - 88 * s, y: center.y - 88 * s, width: 176 * s, height: 176 * s)).fill()

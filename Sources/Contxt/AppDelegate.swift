@@ -176,7 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let ring = NSBezierPath(ovalIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2))
             ring.lineWidth = size * 0.10
             ring.lineCapStyle = .round
-            let cycle = 2 * .pi * radius / 8
+            let cycle = 2 * .pi * radius / 6
             ring.setLineDash([cycle * 0.34, cycle * 0.66], count: 2, phase: 0)
             ring.stroke()
 

@@ -32,14 +32,16 @@ func draw() {
     glow.draw(fromCenter: .zero, radius: 0, toCenter: .zero, radius: 150, options: [])
     NSGraphicsContext.restoreGraphicsState()
 
-    // Ring motif (matches the app icon): eight dots around a blue center dot.
+    // Ring motif (matches the app icon): six curved dashes around a blue center dot.
     let center = CGPoint(x: width / 2, y: 290)
-    NSColor(calibratedWhite: 0.96, alpha: 1).setFill()
-    for i in 0..<8 {
-        let angle = CGFloat(i) * .pi / 4
-        let x = center.x + sin(angle) * 44
-        let y = center.y + cos(angle) * 44
-        NSBezierPath(ovalIn: CGRect(x: x - 9, y: y - 9, width: 18, height: 18)).fill()
+    NSColor(calibratedWhite: 0.96, alpha: 1).setStroke()
+    for i in 0..<6 {
+        let mid = CGFloat(i) * 60 + 90
+        let arc = NSBezierPath()
+        arc.appendArc(withCenter: center, radius: 44, startAngle: mid - 17, endAngle: mid + 17)
+        arc.lineWidth = 12
+        arc.lineCapStyle = .round
+        arc.stroke()
     }
     NSColor(calibratedRed: 0.43, green: 0.66, blue: 1, alpha: 1).setFill()
     NSBezierPath(ovalIn: CGRect(x: center.x - 14, y: center.y - 14, width: 28, height: 28)).fill()
