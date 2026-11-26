@@ -64,6 +64,18 @@ enum AITool: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    var installedApp: URL? {
+        appBundleIDs.lazy.compactMap { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }.first
+    }
+
+    /// Link that opens a saved chat inside the desktop app. Claude's app
+    /// registers the claude:// scheme with the same host and path as the web.
+    func appLink(for webURL: String) -> URL? {
+        guard self == .claude, var parts = URLComponents(string: webURL) else { return nil }
+        parts.scheme = "claude"
+        return parts.url
+    }
+
     static func detect(_ link: String) -> AITool? {
         guard let host = URL(string: link.trimmingCharacters(in: .whitespaces))?.host?.lowercased() else { return nil }
         return allCases.first { tool in tool.hosts.contains { host == $0 || host.hasSuffix("." + $0) } }

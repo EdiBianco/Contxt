@@ -127,13 +127,35 @@ enum DropActions {
     /// AI chats take no files through a link: open the chat (or a new one) and
     /// leave the files on the pasteboard for Cmd+V.
     static func dropOnAI(_ tool: AITool, chat: AIChat?, filePaths: [String]) {
+        if let chat { DestinationStore.shared.markUsed(chat.id) }
+
+        // Desktop app installed: a new chat gets the files handed straight to
+        // the app; a saved chat opens in the app through its URL scheme.
+        if let app = tool.installedApp {
+            if chat == nil {
+                dropOnApp(appPath: app.path, filePaths: filePaths)
+                return
+            }
+            if let link = chat.flatMap({ tool.appLink(for: $0.url) }) {
+                copyToPasteboard(filePaths)
+                NSWorkspace.shared.open(link)
+                Toast.show("Files copied. Press \u{2318}V in \(tool.title) to attach them")
+                return
+            }
+        }
+
         guard let url = URL(string: chat?.url ?? "") ?? Optional(tool.newChatURL) else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.writeObjects(filePaths.map { URL(fileURLWithPath: $0) as NSURL })
         NSWorkspace.shared.open(url)
-        if let chat { DestinationStore.shared.markUsed(chat.id) }
         Toast.show("Files copied. Press \u{2318}V in \(tool.title) to attach them")
+    }
+
+    private static func copyToPasteboard(_ filePaths: [String]) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects(filePaths.map { URL(fileURLWithPath: $0) as NSURL })
     }
 
     /// Opens Messages or Mail with the files attached, addressed to the contact.
