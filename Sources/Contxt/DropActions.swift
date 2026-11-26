@@ -129,10 +129,10 @@ enum DropActions {
     static func dropOnAI(_ tool: AITool, chat: AIChat?, filePaths: [String]) {
         if let chat { DestinationStore.shared.markUsed(chat.id) }
 
-        // Desktop app installed: a new chat gets the files handed straight to
-        // the app; a saved chat opens in the app through its URL scheme.
+        // Desktop app installed: a new Claude or Gemini chat gets the files
+        // handed straight to the app; a saved chat opens in the app through its URL scheme.
         if let app = tool.installedApp {
-            if chat == nil && tool == .claude {
+            if chat == nil && (tool == .claude || tool == .gemini) {
                 dropOnApp(appPath: app.path, filePaths: filePaths)
                 return
             }

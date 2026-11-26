@@ -51,7 +51,8 @@ enum AITool: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .claude: return ["com.anthropic.claudefordesktop"]
         case .chatgpt: return ["com.openai.chat"]
-        case .gemini, .notebooklm: return []
+        case .gemini: return ["com.google.GeminiMacOS"]
+        case .notebooklm: return []
         }
     }
 
