@@ -71,6 +71,7 @@ final class RingView: NSView, NSDraggingSource {
     private static let dropZoneID = "__dropzone"
     private static let hoverScale: CGFloat = 1.16
     private static let dwellSeconds: TimeInterval = 0.7
+    private static let aiDwellSeconds: TimeInterval = 0.45
 
     private static let baseColor = dynamic(dark: NSColor(white: 0.10, alpha: 0.78), light: NSColor(white: 1.0, alpha: 0.74))
     private static let borderColor = dynamic(dark: NSColor(white: 1, alpha: 0.16), light: NSColor(white: 0, alpha: 0.10))
@@ -597,6 +598,7 @@ final class RingView: NSView, NSDraggingSource {
         }
         guard newID != hoveredID else { return }
         hoveredID = newID
+        if ChatListController.shared.isVisible { ChatListController.shared.hide() }
 
         for item in items { setHovered(item, item.destination.id == newID) }
         setDropZoneHovered(newID == Self.dropZoneID)
@@ -619,6 +621,14 @@ final class RingView: NSView, NSDraggingSource {
     /// Finder so the file can be dropped into one of its subfolders.
     private func restartDwell(for found: Target?) {
         dwellTimer?.invalidate()
+        if isDraggingFiles, case .item(let item)? = found, case .ai(_, _, let tool, let chats) = item.destination, !chats.isEmpty {
+            dwellTimer = Timer.scheduledTimer(withTimeInterval: Self.aiDwellSeconds, repeats: false) { [weak self] _ in
+                guard let self, let window = self.window else { return }
+                let anchor = window.convertToScreen(self.convert(item.circle.frame, to: nil))
+                ChatListController.shared.show(tool: tool, chats: chats, beside: anchor)
+            }
+            return
+        }
         guard isDraggingFiles, case .item(let item)? = found, case .folder(_, _, let path, _) = item.destination else { return }
 
         dwellTimer = Timer.scheduledTimer(withTimeInterval: Self.dwellSeconds, repeats: false) { [weak self] _ in
@@ -848,6 +858,8 @@ final class RingView: NSView, NSDraggingSource {
             DropActions.dropOnAction(action, filePaths: paths)
         case .shortcut(_, _, let name):
             DropActions.dropOnShortcut(name: name, filePaths: paths)
+        case .ai(_, _, let tool, _):
+            DropActions.dropOnAI(tool, chat: nil, filePaths: paths)
         }
     }
 }

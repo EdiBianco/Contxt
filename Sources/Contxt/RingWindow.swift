@@ -30,6 +30,10 @@ final class RingController {
         ringView.onDismiss = { [weak self] in self?.hide() }
         DestinationStore.shared.onChange = { [weak ringView] in ringView?.rebuildAll() }
         Preferences.shared.onRingLayoutChange = { [weak ringView] in ringView?.rebuildAll() }
+        ChatListController.shared.onDrop = { [weak self] tool, chat, urls in
+            DropActions.dropOnAI(tool, chat: chat, filePaths: urls.map(\.path))
+            self?.hide()
+        }
     }
 
     var isVisible: Bool { panel.isVisible }
@@ -51,6 +55,7 @@ final class RingController {
     }
 
     func hide() {
+        ChatListController.shared.hide()
         ringView.endTracking()
         panel.orderOut(nil)
     }

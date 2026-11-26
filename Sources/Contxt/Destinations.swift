@@ -88,6 +88,7 @@ enum Destination {
     case contact(id: String, label: String, target: ContactTarget)
     case action(id: String, label: String, action: CommonAction)
     case shortcut(id: String, label: String, name: String)
+    case ai(id: String, label: String, tool: AITool, chats: [AIChat])
 
     var id: String {
         switch self {
@@ -97,6 +98,7 @@ enum Destination {
         case .contact(let id, _, _): return id
         case .action(let id, _, _): return id
         case .shortcut(let id, _, _): return id
+        case .ai(let id, _, _, _): return id
         }
     }
 
@@ -108,6 +110,7 @@ enum Destination {
         case .contact(_, let label, _): return label
         case .action(_, let label, _): return label
         case .shortcut(_, let label, _): return label
+        case .ai(_, let label, _, _): return label
         }
     }
 
@@ -131,7 +134,7 @@ enum Destination {
             }
         case .shortcut:
             return DestinationBadge(symbol: "wand.and.stars", color: .systemPurple)
-        case .app, .action:
+        case .app, .action, .ai:
             return nil
         }
     }
@@ -153,6 +156,7 @@ enum Destination {
             }
         case .action(_, _, let action): return action.title
         case .shortcut(_, let label, _): return "Run \u{2018}\(label)\u{2019}"
+        case .ai(_, let label, _, _): return "New \(label) chat"
         }
     }
 
@@ -169,6 +173,8 @@ enum Destination {
             return NSImage(named: NSImage.trashFullName) ?? NSImage()
         case .shortcut:
             return NSWorkspace.shared.icon(forFile: "/System/Applications/Shortcuts.app")
+        case .ai(_, _, let tool, _):
+            return tool.iconImage()
         }
     }
 }

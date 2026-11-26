@@ -233,7 +233,7 @@ private struct HotKeyField: NSViewRepresentable {
 
 struct SettingsView: View {
     private enum Sheet: String, Identifiable {
-        case folders, apps, contacts, shortcuts, order, dropZone
+        case folders, apps, contacts, shortcuts, aiChats, order, dropZone
         var id: String { rawValue }
     }
 
@@ -242,6 +242,10 @@ struct SettingsView: View {
     @ObservedObject private var dropZone = DropZoneStore.shared
     @ObservedObject private var updater = Updater.shared
     @State private var sheet: Sheet?
+
+    private var aiChatCount: Int {
+        store.records.filter { $0.kind == .ai }.reduce(0) { $0 + ($1.chats?.count ?? 0) }
+    }
 
     private func count(_ kinds: DestinationRecord.Kind...) -> Int {
         store.records.filter { kinds.contains($0.kind) }.count
@@ -342,6 +346,9 @@ struct SettingsView: View {
                 NavRow(title: "Contacts", subtitle: "\(count(.contact)) contacts configured",
                        icons: icons(.contact)) { sheet = .contacts }
                 Divider().padding(.leading, 12)
+                NavRow(title: "AI Chats", subtitle: "\(aiChatCount) chats saved",
+                       icons: icons(.ai)) { sheet = .aiChats }
+                Divider().padding(.leading, 12)
                 NavRow(title: "Ring Order", subtitle: "Drag to arrange the circles") { sheet = .order }
             }
         }
@@ -353,6 +360,7 @@ struct SettingsView: View {
             case .apps: AppsSheet()
             case .contacts: ContactsSheet()
             case .shortcuts: ShortcutsSheet()
+            case .aiChats: AIChatsSheet()
             case .order: OrderSheet()
             case .dropZone: DropZoneSheet()
             }
@@ -748,6 +756,84 @@ private struct ShortcutsSheet: View {
     }
 }
 
+private struct AIChatsSheet: View {
+    @ObservedObject private var store = DestinationStore.shared
+    @State private var link = ""
+    @State private var name = ""
+    @State private var error: String?
+
+    var body: some View {
+        SheetFrame(symbol: "sparkles", title: "AI Chats", subtitle: "Hold a file on an AI circle to pick a saved chat") {
+            let tools = store.records.filter { $0.kind == .ai }
+            if tools.isEmpty {
+                Card { Text("No AI chats yet. Paste a Claude, ChatGPT, Gemini or NotebookLM link below.").font(.caption).foregroundStyle(.secondary).padding(14) }
+            }
+            ForEach(tools) { record in
+                let tool = record.aiTool ?? .claude
+                HStack {
+                    SectionLabel(tool.title)
+                    Spacer()
+                    removeButton(record)
+                }
+                Card {
+                    let chats = record.chats ?? []
+                    if chats.isEmpty {
+                        Text("Dropping on this circle starts a new chat").font(.caption).foregroundStyle(.secondary).padding(14)
+                    }
+                    ForEach(chats) { chat in
+                        HStack(spacing: 10) {
+                            Image(nsImage: tool.iconImage()).resizable().frame(width: 24, height: 24)
+                            VStack(alignment: .leading, spacing: 1) {
+                                TextField("Name", text: chatName(record, chat)).textFieldStyle(.plain).font(.system(size: 13, weight: .medium))
+                                Text(chat.url).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                            }
+                            Spacer(minLength: 6)
+                            Button { store.removeChat(chat.id) } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.borderless).help("Remove")
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        if chat.id != chats.last?.id { Divider().padding(.leading, 46) }
+                    }
+                }
+            }
+            SectionLabel("Add a chat").frame(maxWidth: .infinity, alignment: .leading)
+            Card {
+                VStack(alignment: .leading, spacing: 8) {
+                    TextField("Chat or project link", text: $link).textFieldStyle(.roundedBorder)
+                    HStack {
+                        TextField("Name, e.g. Launch plan", text: $name).textFieldStyle(.roundedBorder)
+                        Button("Add") { add() }.disabled(link.isEmpty)
+                    }
+                    if let error { Text(error).font(.caption).foregroundStyle(.red) }
+                }
+                .padding(12)
+            }
+        }
+    }
+
+    private func add() {
+        if let tool = store.addChat(link: link, name: name) {
+            error = nil; link = ""; name = ""
+            contxtLog("added \(tool.title) chat")
+        } else {
+            error = "That link isn't from Claude, ChatGPT, Gemini or NotebookLM."
+        }
+    }
+
+    private func chatName(_ record: DestinationRecord, _ chat: AIChat) -> Binding<String> {
+        Binding(
+            get: { chat.name },
+            set: { value in
+                guard let r = store.records.firstIndex(where: { $0.id == record.id }),
+                      let c = store.records[r].chats?.firstIndex(where: { $0.id == chat.id }) else { return }
+                store.records[r].chats?[c].name = value
+            }
+        )
+    }
+}
+
 private struct OrderSheet: View {
     @ObservedObject private var store = DestinationStore.shared
 
@@ -759,6 +845,7 @@ private struct OrderSheet: View {
         case .contact: return "Contact"
         case .action: return "Action"
         case .shortcut: return "Shortcut"
+        case .ai: return "AI"
         }
     }
 

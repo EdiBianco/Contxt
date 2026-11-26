@@ -5,7 +5,7 @@ import AppKit
 
 struct DestinationRecord: Codable, Identifiable, Equatable {
     enum Kind: String, Codable, CaseIterable {
-        case folder, app, script, contact, action, shortcut
+        case folder, app, script, contact, action, shortcut, ai
     }
 
     var id = UUID()
@@ -19,6 +19,8 @@ struct DestinationRecord: Codable, Identifiable, Equatable {
     var telegram: String?
     var channel: ContactChannel?
     var avatarPath: String?
+    var aiTool: AITool?
+    var chats: [AIChat]?
 
     var destination: Destination {
         switch kind {
@@ -38,6 +40,8 @@ struct DestinationRecord: Codable, Identifiable, Equatable {
             return .action(id: id.uuidString, label: name, action: action ?? .trash)
         case .shortcut:
             return .shortcut(id: id.uuidString, label: name, name: path) // `path` holds the Shortcuts name
+        case .ai:
+            return .ai(id: id.uuidString, label: name, tool: aiTool ?? .claude, chats: chats ?? [])
         }
     }
 }
@@ -104,6 +108,36 @@ final class DestinationStore: ObservableObject {
             records.append(DestinationRecord(kind: .action, name: action.title, action: action))
         } else {
             records.removeAll { $0.kind == .action && $0.action == action }
+        }
+    }
+
+    /// Adds a chat link under its tool's circle, creating the circle if needed.
+    /// Returns nil when the link isn't from a supported AI tool.
+    @discardableResult
+    func addChat(link: String, name: String) -> AITool? {
+        let link = link.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let tool = AITool.detect(link) else { return nil }
+        let title = name.trimmingCharacters(in: .whitespaces).isEmpty ? "Chat" : name
+        let chat = AIChat(name: title, url: link)
+        if let i = records.firstIndex(where: { $0.kind == .ai && $0.aiTool == tool }) {
+            records[i].chats = (records[i].chats ?? []) + [chat]
+        } else {
+            records.append(DestinationRecord(kind: .ai, name: tool.title, aiTool: tool, chats: [chat]))
+        }
+        return tool
+    }
+
+    func removeChat(_ chatID: UUID) {
+        for i in records.indices where records[i].kind == .ai {
+            records[i].chats?.removeAll { $0.id == chatID }
+        }
+    }
+
+    func markUsed(_ chatID: UUID) {
+        for i in records.indices where records[i].kind == .ai {
+            if let c = records[i].chats?.firstIndex(where: { $0.id == chatID }) {
+                records[i].chats?[c].lastUsed = Date()
+            }
         }
     }
 
