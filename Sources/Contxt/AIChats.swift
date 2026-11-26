@@ -68,16 +68,41 @@ enum AITool: String, Codable, CaseIterable, Identifiable {
         appBundleIDs.lazy.compactMap { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }.first
     }
 
-    /// Link that opens a saved chat inside the desktop app. Claude's app
-    /// registers the claude:// scheme with the same host and path as the web.
-    func appLink(for webURL: String) -> URL? {
-        guard self == .claude, var parts = URLComponents(string: webURL) else { return nil }
-        parts.scheme = "claude"
-        return parts.url
+    /// Link that opens a chat inside the desktop app (nil = no app route).
+    /// Claude: claude://claude.ai/chat/{id}, /project/{id} (Anthropic docs).
+    /// ChatGPT: codex://threads/{id} (OpenAI docs; the app keeps codex://).
+    /// A link pasted already in the app's own scheme is used as is.
+    func appLink(for link: String) -> URL? {
+        guard let url = URL(string: link.trimmingCharacters(in: .whitespacesAndNewlines)) else { return nil }
+        if url.scheme == "claude" || url.scheme == "codex" { return url }
+        switch self {
+        case .claude:
+            guard var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+            parts.scheme = "claude"
+            return parts.url
+        case .chatgpt:
+            let comps = url.pathComponents
+            guard let i = comps.firstIndex(of: "c"), i + 1 < comps.count else { return nil }
+            return URL(string: "codex://threads/\(comps[i + 1])")
+        case .gemini, .notebooklm:
+            return nil
+        }
+    }
+
+    /// New chat inside the desktop app.
+    var appNewChatLink: URL? {
+        switch self {
+        case .claude: return URL(string: "claude://claude.ai/new")
+        case .chatgpt: return URL(string: "codex://threads/new")
+        case .gemini, .notebooklm: return nil
+        }
     }
 
     static func detect(_ link: String) -> AITool? {
-        guard let host = URL(string: link.trimmingCharacters(in: .whitespaces))?.host?.lowercased() else { return nil }
+        let link = link.trimmingCharacters(in: .whitespaces)
+        if link.hasPrefix("claude://") { return .claude }
+        if link.hasPrefix("codex://") { return .chatgpt }
+        guard let host = URL(string: link)?.host?.lowercased() else { return nil }
         return allCases.first { tool in tool.hosts.contains { host == $0 || host.hasSuffix("." + $0) } }
     }
 

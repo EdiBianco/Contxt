@@ -132,11 +132,11 @@ enum DropActions {
         // Desktop app installed: a new chat gets the files handed straight to
         // the app; a saved chat opens in the app through its URL scheme.
         if let app = tool.installedApp {
-            if chat == nil {
+            if chat == nil && tool == .claude {
                 dropOnApp(appPath: app.path, filePaths: filePaths)
                 return
             }
-            if let link = chat.flatMap({ tool.appLink(for: $0.url) }) {
+            if let link = chat.map({ tool.appLink(for: $0.url) }) ?? tool.appNewChatLink {
                 copyToPasteboard(filePaths)
                 NSWorkspace.shared.open(link)
                 Toast.show("Files copied. Press \u{2318}V in \(tool.title) to attach them")
