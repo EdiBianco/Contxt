@@ -4,8 +4,6 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>Contxt</string>
-	<key>CFBundleName</key>
-	<string>Contxt</string>
 	<key>CFBundleExecutable</key>
 	<string>Contxt</string>
 	<key>CFBundleIconFile</key>
@@ -14,18 +12,18 @@
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.contxt.app</string>
+	<key>CFBundleName</key>
+	<string>Contxt</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.3.6</string>
+	<string>0.4.0</string>
 	<key>CFBundleVersion</key>
-	<string>11</string>
+	<string>12</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
 	<key>LSUIElement</key>
 	<true/>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Contxt lists your contacts so you can drop files onto a person to message or email them.</string>
 	<key>NSDesktopFolderUsageDescription</key>
@@ -36,5 +34,7 @@
 	<string>Contxt moves or copies dropped files into your Downloads folder.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 </dict>
 </plist>
